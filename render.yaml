@@ -4,5 +4,5 @@ services:
     env: docker
     region: singapore
     plan: free
-    buildCommand: docker build -t auto-vote-bot-python .
-    startCommand: docker run auto-vote-bot-python
+    dockerfilePath: ./Dockerfile
+    dockerCommand: python app.py
