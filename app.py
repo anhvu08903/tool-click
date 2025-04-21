@@ -19,6 +19,9 @@ PASSWORD = "Izone@2025"
 
 def setup_driver():
     """Khởi tạo trình duyệt Chrome headless"""
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
+    
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
@@ -26,7 +29,9 @@ def setup_driver():
     options.add_argument('--disable-gpu')
     options.add_argument('--window-size=1920,1080')  # Màn hình lớn để dễ thao tác
     
-    return webdriver.Chrome(options=options)
+    # Sử dụng webdriver_manager để tự động cài đặt ChromeDriver phù hợp
+    service = Service(ChromeDriverManager().install())
+    return webdriver.Chrome(service=service, options=options)
 
 def vote_process():
     """Thực hiện quy trình bình chọn đầy đủ"""
