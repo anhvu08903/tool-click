@@ -75,6 +75,10 @@ def vote_process():
         logger.info("Đợi form đăng nhập xuất hiện...")
         wait.until(EC.presence_of_element_located((By.ID, 'username')))
         
+        # Lấy screenshot để debug
+        driver.save_screenshot('/tmp/form_login.png')
+        logger.info("Đã lưu screenshot tại /tmp/form_login.png")
+        
         # Điền thông tin đăng nhập
         logger.info("Điền thông tin đăng nhập...")
         email_input = driver.find_element(By.ID, 'username')
@@ -88,8 +92,32 @@ def vote_process():
         
         # Click nút đăng nhập trong form
         logger.info("Click nút đăng nhập...")
-        submit_button = driver.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
-        submit_button.click()
+        # Thử nhiều cách khác nhau để tìm nút đăng nhập
+        try:
+            # Cách 1: Tìm theo type
+            submit_button = driver.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
+            submit_button.click()
+            logger.info("Đã tìm và click nút đăng nhập bằng selector button[type='submit']")
+        except:
+            try:
+                # Cách 2: Tìm theo text
+                submit_button = driver.find_element(By.XPATH, '//button[contains(text(), "Đăng nhập")]')
+                submit_button.click()
+                logger.info("Đã tìm và click nút đăng nhập bằng text 'Đăng nhập'")
+            except:
+                try:
+                    # Cách 3: Tìm theo vị trí tương đối
+                    submit_button = driver.find_element(By.XPATH, '//form//button')
+                    submit_button.click()
+                    logger.info("Đã tìm và click nút đăng nhập bằng vị trí //form//button")
+                except:
+                    # Cách 4: Tìm tất cả các button và click button cuối cùng trong form
+                    buttons = driver.find_elements(By.TAG_NAME, 'button')
+                    if buttons:
+                        buttons[-1].click()
+                        logger.info("Đã tìm và click button cuối cùng trong danh sách buttons")
+                    else:
+                        logger.error("Không thể tìm thấy nút đăng nhập nào!")
         
         # Đợi đăng nhập hoàn tất
         time.sleep(3)
@@ -102,7 +130,7 @@ def vote_process():
         first_vote_button.click()
         
         # Đợi một chút để UI cập nhật
-        time.sleep(2)
+        time.sleep(5)  # Tăng thời gian chờ lên 5 giây
         
         # BƯỚC 3: Tìm và click vào ảnh mục tiêu
         logger.info("Tìm ảnh mục tiêu, đang click...")
