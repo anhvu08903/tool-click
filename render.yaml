@@ -5,3 +5,8 @@ services:
     region: singapore
     plan: free
     dockerfilePath: ./Dockerfile
+    buildFilter:
+      paths:
+        - selenium_bot.py
+        - requirements.txt
+        - Dockerfile

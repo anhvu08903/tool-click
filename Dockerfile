@@ -18,6 +18,11 @@ RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key
     && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
+# Cài đặt Chrome Driver
+RUN apt-get update && apt-get install -y \
+    chromium-driver \
+    && rm -rf /var/lib/apt/lists/*
+
 # Tạo thư mục làm việc
 WORKDIR /app
 
@@ -25,7 +30,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Cài đặt các gói Python
-RUN pip install --no-cache-dir -r requirements.txt flask
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Sao chép mã nguồn
 COPY . .
@@ -33,5 +38,5 @@ COPY . .
 # Expose port 10000 để Render có thể phát hiện
 EXPOSE 10000
 
-# Chạy server Flask
-CMD ["python", "server.py"]
+# Chạy server Flask với selenium_bot.py
+CMD ["python", "selenium_bot.py"]
