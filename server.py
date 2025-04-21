@@ -1,6 +1,10 @@
+import os
 import time
+import threading
 import logging
+from flask import Flask, jsonify
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -17,21 +21,33 @@ logger = logging.getLogger(__name__)
 USERNAME = "ngocanhvu8903@gmail.com"
 PASSWORD = "Izone@2025"
 
+# Cổng cho Flask app
+PORT = int(os.environ.get("PORT", 10000))
+
+# Tạo Flask app
+app = Flask(__name__)
+
+# Biến toàn cục để lưu trạng thái
+vote_status = {
+    "running": False,
+    "last_vote_time": None,
+    "vote_count": 0,
+    "errors": []
+}
+
 def setup_driver():
     """Khởi tạo trình duyệt Chrome headless"""
-    from selenium.webdriver.chrome.service import Service
-    from webdriver_manager.chrome import ChromeDriverManager
-    
-    options = webdriver.ChromeOptions()
+    options = Options()
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
-    options.add_argument('--window-size=1920,1080')  # Màn hình lớn để dễ thao tác
+    options.add_argument('--window-size=1920,1080')
     
-    # Sử dụng webdriver_manager để tự động cài đặt ChromeDriver phù hợp
-    service = Service(ChromeDriverManager().install())
-    return webdriver.Chrome(service=service, options=options)
+    # Sử dụng Chrome có sẵn trên hệ thống
+    options.binary_location = "/usr/bin/google-chrome"
+    
+    return webdriver.Chrome(options=options)
 
 def vote_process():
     """Thực hiện quy trình bình chọn đầy đủ"""
@@ -61,7 +77,6 @@ def vote_process():
         
         # Điền thông tin đăng nhập
         logger.info("Điền thông tin đăng nhập...")
-        # Sử dụng ID chính xác cho các trường đăng nhập
         email_input = driver.find_element(By.ID, 'username')
         password_input = driver.find_element(By.ID, 'password')
         
@@ -111,34 +126,78 @@ def vote_process():
         
         logger.info("Bình chọn thành công!")
         
-    except TimeoutException:
-        logger.error("Timeout - không thể tìm thấy phần tử trong thời gian chờ")
+        # Cập nhật trạng thái
+        vote_status["last_vote_time"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        vote_status["vote_count"] += 1
+        
+        return True
+        
+    except TimeoutException as e:
+        error_msg = f"Timeout - không thể tìm thấy phần tử trong thời gian chờ: {str(e)}"
+        logger.error(error_msg)
+        vote_status["errors"].append(error_msg)
+        return False
     except NoSuchElementException as e:
-        logger.error(f"Không tìm thấy phần tử yêu cầu: {str(e)}")
+        error_msg = f"Không tìm thấy phần tử yêu cầu: {str(e)}"
+        logger.error(error_msg)
+        vote_status["errors"].append(error_msg)
+        return False
     except Exception as e:
-        logger.error(f"Lỗi không mong muốn: {str(e)}")
+        error_msg = f"Lỗi không mong muốn: {str(e)}"
+        logger.error(error_msg)
+        vote_status["errors"].append(error_msg)
+        return False
     finally:
         if driver:
             driver.quit()
             logger.info("Đã đóng trình duyệt")
 
-def main():
-    """Hàm chính để chạy bot liên tục"""
-    logger.info("Khởi động bot bình chọn tự động")
+def vote_scheduler():
+    """Hàm lập lịch cho quá trình bình chọn"""
+    vote_status["running"] = True
     
-    try:
-        while True:
+    while vote_status["running"]:
+        try:
             vote_process()
-            
-            # Tính toán thời gian chờ đến phút tiếp theo
-            next_run = 60  # Một phút
-            logger.info(f"Hoàn thành! Đợi {next_run} giây cho lần chạy tiếp theo...")
-            time.sleep(next_run)
-            
-    except KeyboardInterrupt:
-        logger.info("Bot đã dừng bởi người dùng")
-    except Exception as e:
-        logger.error(f"Lỗi không mong muốn trong vòng lặp chính: {str(e)}")
+            logger.info(f"Đợi 60 giây cho lần chạy tiếp theo...")
+            time.sleep(60)  # Đợi 1 phút
+        except Exception as e:
+            logger.error(f"Lỗi trong vòng lặp lập lịch: {str(e)}")
+            vote_status["errors"].append(f"Scheduler error: {str(e)}")
+            time.sleep(10)  # Đợi một chút nếu có lỗi
+
+# API endpoints
+@app.route('/')
+def home():
+    return jsonify({
+        "status": "running",
+        "message": "Auto Vote Bot is running"
+    })
+
+@app.route('/status')
+def status():
+    return jsonify(vote_status)
+
+@app.route('/start')
+def start():
+    if not vote_status["running"]:
+        # Khởi động thread mới nếu chưa chạy
+        vote_thread = threading.Thread(target=vote_scheduler)
+        vote_thread.daemon = True
+        vote_thread.start()
+        return jsonify({"status": "started"})
+    return jsonify({"status": "already running"})
+
+@app.route('/stop')
+def stop():
+    vote_status["running"] = False
+    return jsonify({"status": "stopped"})
 
 if __name__ == "__main__":
-    main()
+    # Khởi động thread bình chọn
+    vote_thread = threading.Thread(target=vote_scheduler)
+    vote_thread.daemon = True
+    vote_thread.start()
+    
+    # Khởi động server Flask
+    app.run(host='0.0.0.0', port=PORT)

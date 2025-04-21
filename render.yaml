@@ -5,4 +5,3 @@ services:
     region: singapore
     plan: free
     dockerfilePath: ./Dockerfile
-    dockerCommand: python app.py

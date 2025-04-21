@@ -25,23 +25,13 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Cài đặt các gói Python
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt flask
 
 # Sao chép mã nguồn
 COPY . .
 
-# Thêm script để tự động tải ChromeDriver phù hợp
-RUN echo '#!/bin/bash \n\
-CHROME_VERSION=$(google-chrome --version | cut -d " " -f 3 | cut -d "." -f 1) \n\
-CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION") \n\
-wget -q -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip" \n\
-unzip -o /tmp/chromedriver.zip -d /usr/local/bin/ \n\
-rm /tmp/chromedriver.zip \n\
-chmod +x /usr/local/bin/chromedriver \n\
-python app.py' > /app/start.sh && chmod +x /app/start.sh
+# Expose port 10000 để Render có thể phát hiện
+EXPOSE 10000
 
-# Sử dụng webdriver-manager để tự động tải ChromeDriver phù hợp
-RUN pip install webdriver-manager
-
-# Chạy script khởi động
-CMD ["/bin/bash", "/app/start.sh"]
+# Chạy server Flask
+CMD ["python", "server.py"]
